@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qabl-la-ansa-v3-ios-fix-1';
+const CACHE_NAME = 'qabl-la-ansa-v3-shortcuts-fix-2';
 const ASSETS = ['./manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 function patchIndex(html){
@@ -25,6 +25,8 @@ function patchIndex(html){
     .mini-pill .ico{display:none!important;}
   }
   `;
+
+  html = html.replace(/قبل لا أنسى - منبّه/g, 'قبل لا أنسى - منبه');
 
   if(!html.includes('qabl-la-ansa iPhone layout fix')){
     html = html.replace('</style>', cssFix + '\n  </style>');
