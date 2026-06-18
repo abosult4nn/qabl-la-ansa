@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qabl-la-ansa-v3-shortcuts-fix-2';
+const CACHE_NAME = 'qabl-la-ansa-v4-native-dictation';
 const ASSETS = ['./manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 function patchIndex(html){
@@ -35,13 +35,40 @@ function patchIndex(html){
   if(!html.includes('function isIOSDevice()')){
     html = html.replace(
       "function toast(msg){ els.toast.textContent = msg; els.toast.classList.add('show'); setTimeout(()=> els.toast.classList.remove('show'), 2200); }",
-      "function toast(msg){ els.toast.textContent = msg; els.toast.classList.add('show'); setTimeout(()=> els.toast.classList.remove('show'), 2200); }\n  function isIOSDevice(){ return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }"
+      "function toast(msg){ els.toast.textContent = msg; els.toast.classList.add('show'); setTimeout(()=> els.toast.classList.remove('show'), 2200); }\n  function isIOSDevice(){ return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }\n  function appBaseUrl(){ return location.origin + location.pathname; }"
+    );
+  }
+
+  if(!html.includes('function handleIncomingVoiceText()')){
+    html = html.replace(
+`function render(){ renderCounts(); renderOverview(); renderTop(); renderList(); renderSearch(); }`,
+`function render(){ renderCounts(); renderOverview(); renderTop(); renderList(); renderSearch(); }
+
+  function handleIncomingVoiceText(){
+    const params = new URLSearchParams(location.search);
+    const incoming = params.get('qla') || params.get('voice') || params.get('text');
+    if(!incoming) return;
+    const text = incoming.trim();
+    if(!text) return;
+    const parsed = parseThought(text);
+    if(parsed.length){
+      items = [...parsed, ...items];
+      save();
+      renderCounts(); renderOverview(); renderTop(); renderList(); renderSearch();
+      toast('تم تسجيل الصوت وترتيبه');
+    }else{
+      openComposer(true);
+      els.input.value = text;
+      toast('وصل النص، اضغط رتّبها');
+    }
+    history.replaceState({}, document.title, location.pathname);
+  }`
     );
   }
 
   html = html.replace(
     "recognition.onerror = () => { stopRecordingUI(); toast('التسجيل غير متاح الآن'); };",
-    "recognition.onerror = () => { stopRecordingUI(); openComposer(true); toast('استخدم مايك الكيبورد للإملاء'); };"
+    "recognition.onerror = () => { stopRecordingUI(); openComposer(true); toast('استخدم تسجيل الآيفون الأصلي'); };"
   );
 
   html = html.replace(
@@ -52,13 +79,18 @@ function patchIndex(html){
     try{ recognition.start(); }catch{ toast('التسجيل غير متاح'); }
   }`,
 `function toggleRecognition(){
-    openComposer(true);
     if(isIOSDevice()){
-      els.voiceLabel.textContent = 'استخدم مايك الكيبورد للإملاء';
-      setTimeout(() => { els.input.focus(); els.composer.scrollIntoView({behavior:'smooth', block:'center'}); }, 180);
-      toast('اضغط مايك الكيبورد داخل مربع الكتابة');
+      const shortcutName = 'قبل لا أنسى - تسجيل';
+      const returnUrl = appBaseUrl();
+      toast('يفتح تسجيل الآيفون الأصلي');
+      window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent(shortcutName) + '&input=text&text=' + encodeURIComponent(returnUrl);
+      setTimeout(() => {
+        openComposer(true);
+        els.voiceLabel.textContent = 'استخدم مايك الكيبورد للإملاء';
+      }, 900);
       return;
     }
+    openComposer(true);
     if(!recognition){ els.input.focus(); toast('استخدم مايك الكيبورد للإملاء'); return; }
     if(isRecording){ recognition.stop(); return; }
     try{ recognition.start(); }catch{ stopRecordingUI(); toast('استخدم مايك الكيبورد للإملاء'); }
@@ -80,6 +112,13 @@ function patchIndex(html){
     }, 160);
   }`
   );
+
+  html = html.replace(
+    `render();\n\n  if('serviceWorker' in navigator)`,
+    `render();\n  handleIncomingVoiceText();\n\n  if('serviceWorker' in navigator)`
+  );
+
+  html = html.replace('اضغط زر المايك أو افتح الكتابة.', 'اضغط زر المايك ليعمل تسجيل الآيفون الأصلي عبر الاختصارات، أو افتح الكتابة.');
 
   return html;
 }
